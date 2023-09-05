@@ -25,12 +25,27 @@ int main(void)
 
     printgrid(sudokugrid);
 
-    createboard(sudokugrid, difficulty[0]);
+    createboard(sudokugrid, difficulty[4]);
     printgrid(sudokugrid);
 
     return EXIT_SUCCESS;
 }
 
+
+void createboard(int sudokugrid[9][9], int difficulty)
+{
+    void solvegrid(int sudokugrid[9][9]);
+    void fillsquare(int rowstart, int columnstart, int sudokugrid[9][9]);
+    void removedigits(int count, int sudokugrid[9][9]);
+    int solve(int sudokugrid[9][9], int row, int column);
+    bool checkvalid(int sudokugrid[9][9]);
+
+    COUNTER(3, i)
+        fillsquare(i * 3, i * 3, sudokugrid);
+
+    solve(sudokugrid, 0, 0);
+    removedigits(difficulty, sudokugrid);
+}
 
 //This function prints out the generated sudokugrid
 int printgrid(int sudokugrid[9][9])
@@ -51,11 +66,11 @@ int printgrid(int sudokugrid[9][9])
 bool checkinrow(int row, int sudokugrid[9][9], int number)
 {
     COUNTER(9, i)
-    if (number == sudokugrid[row][i])
-    {
-        // fprintf(stderr, "The number already exists in this row!!\n");
-        return true;
-    }
+        if (number == sudokugrid[row][i])
+            {
+                // fprintf(stderr, "The number already exists in this row!!\n");
+                return true;
+            }
     return false;
 }
 
@@ -66,11 +81,11 @@ bool checkinrow(int row, int sudokugrid[9][9], int number)
 bool checkincolumn(int column, int sudokugrid[9][9], int number)
 {
     COUNTER(9, i)
-    if (number == sudokugrid[i][column])
-    {
-        // fprintf(stderr, "The number already exists in this column!!\n");
-        return true;
-    }
+        if (number == sudokugrid[i][column])
+        {
+            // fprintf(stderr, "The number already exists in this column!!\n");
+            return true;
+        }
     
     return false;
 }
@@ -79,15 +94,18 @@ bool checkincolumn(int column, int sudokugrid[9][9], int number)
 //A square being one of the nine 3 x 3 boxes within a sudoku grid
 //it returns FALSE if the number is not found
 //it returns TRUE if the number is found
-bool checkinsquare(int rowstart, int columnstart, int sudokugrid[9][9], int number)
+bool checkinsquare(int row, int column, int sudokugrid[9][9], int number)
 {
+    int rowstart = (row / 3) * 3;
+    int columnstart = (column / 3) * 3;
+    
     COUNTER(3, i)
     COUNTER(3, j)
-    if (number == sudokugrid[rowstart + i][columnstart + j])
-    {
-        // fprintf(stderr, "The number already exists in this square!!\n");
-        return true;
-    }
+       if (number == sudokugrid[rowstart + i][columnstart + j])
+        {
+            // fprintf(stderr, "The number already exists in this square!!\n");
+            return true;
+        }
     
     return false;
 }
@@ -97,13 +115,13 @@ bool checkinsquare(int rowstart, int columnstart, int sudokugrid[9][9], int numb
 //a true is returned if the number is not found
 bool checkifsafe(int row, int column, int number, int sudokugrid[9][9])
 {
-    bool checkinsquare(int rowstart, int columnstart, int sudokugrid[9][9], int number);
+    bool checkinsquare(int row, int column, int sudokugrid[9][9], int number);
     bool checkincolumn(int column, int sudokugrid[9][9], int number);
     bool checkinrow(int row, int sudokugrid[9][9], int number);
 
     if(!checkinrow(row, sudokugrid, number) &&
         !checkincolumn(column, sudokugrid, number) &&
-         !checkinsquare(((row / 3) * 3), ((column / 3) * 3), sudokugrid, number))
+         !checkinsquare(row, column, sudokugrid, number))
         return true;
     else
     {
@@ -117,7 +135,7 @@ void fillsquare(int rowstart, int columnstart, int sudokugrid[9][9])
 {
     //random number is used to generate random numbers to place in the point
     //checkinsquare is used to not duplicate a number
-    int randomnumber(bool limit, int probabilitycheck[9], int *risk);
+    int randomnumber(bool limit, int probabilitycheck[9]);
     bool checkifsafe(int row, int column, int number, int sudokugrid[9][9]);
     int printgrid(int sudokugrid[9][9]);
 
@@ -127,7 +145,6 @@ void fillsquare(int rowstart, int columnstart, int sudokugrid[9][9])
     int foundcount = 0;
     int num;
     bool issafe;
-    int risk = 0;
     
     COUNTER(9, i)
         probabilitycheck[i] = 1;
@@ -141,7 +158,7 @@ void fillsquare(int rowstart, int columnstart, int sudokugrid[9][9])
         {
             do
             {
-                num = randomnumber(true, probabilitycheck, &risk);
+                num = randomnumber(true, probabilitycheck);
                 issafe = checkifsafe(rowstart + i, columnstart + j, num, sudokugrid);
             } while (!issafe && foundcount != 8);
             
@@ -153,7 +170,7 @@ void fillsquare(int rowstart, int columnstart, int sudokugrid[9][9])
 
 
 //this function returns a random number between 1 and 9
-int randomnumber(bool limit, int probabilitycheck[9], int *risk)
+int randomnumber(bool limit, int probabilitycheck[9])
 {
     int selectnum;
     double maxnum = 0;
@@ -170,6 +187,8 @@ int randomnumber(bool limit, int probabilitycheck[9], int *risk)
     }
 
     //the largest of our randomly affected offsets is picked
+    //this helps when used with probabilitycheck cause it reduces the possible picks to whatever hasn't been 
+    //sent before
     COUNTER(9, i)
     {
         if (offset[i] > maxnum)
@@ -179,23 +198,12 @@ int randomnumber(bool limit, int probabilitycheck[9], int *risk)
         }
     }
 
-    if(limit)
-    {
-        probabilitycheck[selectnum] = 0;
-        *risk++;
-    }
-
-    if(*risk == 9)
-    {
-        COUNTER(9, i)
-            probabilitycheck[i] = 1;
-        
-        *risk = 0;
-    }
-
+    //this portion implements the probability of a number appearing
     //if limit is set to true the selected number is given a probabilitycheck of 0
     //this ensures it cannot be selected again because of our largest number selection
     //this should also reduce the number of loops needed to fill a square
+    if(limit)
+        probabilitycheck[selectnum] = 0;
  
     return selectnum + 1;
 }
@@ -204,7 +212,7 @@ int randomnumber(bool limit, int probabilitycheck[9], int *risk)
 //the larger the count the higher the difficulty
 void removedigits(int count, int sudokugrid[9][9])
 {
-    int randomnumber(bool limit, int probabilitycheck[9], int *risk);
+    int randomnumber(bool limit, int probabilitycheck[9]);
 
     int probabilitycheck[9];
     COUNTER(9, i)
@@ -216,8 +224,8 @@ void removedigits(int count, int sudokugrid[9][9])
     //if the point is not zero it is turned to a 0, removing the digit
     while (count != 0)
     {
-        row = (randomnumber(false, probabilitycheck, NULL)) - 1;
-        col = (randomnumber(false, probabilitycheck, NULL)) - 1;
+        row = (randomnumber(false, probabilitycheck)) - 1;
+        col = (randomnumber(false, probabilitycheck)) - 1;
 
         if (sudokugrid[row][col] != 0)
         {
@@ -227,229 +235,74 @@ void removedigits(int count, int sudokugrid[9][9])
     }
 }
 
+//this is a recursive function that goes from one point to the next trying to find the valid number for that point
 int solve(int sudokugrid[9][9], int row, int column)
 {
     bool checkifsafe(int row, int column, int number, int sudokugrid[9][9]);
-    bool checkfilled(int sudokugrid[9][9], int row, int column);
     
+    
+    //this ends the function by checking if the last row and last column have been reached
     if(row == 8 && column == 8)
         return 1;
 
+    //moves to the next row when the end of the row is reached
     if(column == 9)
     {
         row++;
         column = 0;
     }
 
-    if(checkfilled(sudokugrid, row, column))
+    //checks if the current point has a value, it calls the function with the next column if the point is already filled
+    if(sudokugrid[row][column])
         return solve(sudokugrid, row, column + 1);
 
     COUNTER(9, number)
     {
+        //the current number is put in as a guess at the current point
+        //if it is safe to put it is entered at that point
         if(checkifsafe(row, column, number + 1, sudokugrid))
         {
             sudokugrid[row][column] = number + 1;
 
+            //here is where the recursion occurs to ensure that following entries are valid until the end of the grid
+            //if any of the following guesses are invalid it invalidates the current number
             if(solve(sudokugrid, row, column + 1) == 1)
                 return 1;
         }
 
+        //our guess is wrong so the current number is reset
         sudokugrid[row][column] = 0;
     }
 
     return 0;
 }
 
-void solvegrid(int sudokugrid[9][9])
+//with our solved grid this function checks if the entire grid is valid
+bool checkvalid(int sudokugrid[9][9])
 {
-    int countmissing(int sudokugrid[9][9]);
-    void reducecandidates(int sudokugrid[9][9], bool candidates[9][9][9]);
-    void addnumberstogrid(int sudokugrid[9][9], bool candidates[9][9][9]);
-    void printcandidates(bool candidates[9][9][9]);
-
-    int missing = 0, tries = 0;
-    bool candidates[9][9][9];
-
-    COUNTER(9, i)
-    COUNTER(9, j)
-    COUNTER(9, k)
-        candidates[i][j][k] = true;
+    bool checkifsafe(int row, int column, int number, int sudokugrid[9][9]);
     
-    // printcandidates(candidates);
-    do
-    {
-        missing = countmissing(sudokugrid);
-
-        reducecandidates(sudokugrid, candidates);
-        addnumberstogrid(sudokugrid, candidates);
-        tries++;
-    } while (missing != 0 && tries < 10000);
-
-    // printcandidates(candidates);
-}
-
-int countmissing(int sudokugrid[9][9])
-{
-    int count = 0;
     COUNTER(9, i)
-    COUNTER(9, j)
-    if (sudokugrid[i][j] == 0)
-        count++;
-
-    return count;
-}
-
-void reducecandidates(int sudokugrid[9][9], bool candidates[9][9][9])
-{
-    void removecolumncandidates(bool candidates[9][9][9], int number, int column, int row);
-    void removerowcandidates(bool candidates[9][9][9], int number, int row, int column);
-    void removesquarecandidates(bool candidates[9][9][9], int number, int rowstart, int columnstart);
-
-    COUNTER(9, i)
-    COUNTER(9, j)
-        if(sudokugrid[i][j] != 0)
+        COUNTER(9, j)
         {
-            COUNTER(9, k)
+            if(checkifsafe(i, j, sudokugrid[i][j], sudokugrid))
             {
-                if((sudokugrid[i][j] - 1) == k)
-                    continue;
-                
-                candidates[i][j][k] = false;
+                fprintf(stdout, "\nThis board is valid!!\n");
+                return true;
+            }
+            else
+            {
+                fprintf(stdout, "\nThis board is not valid!!\n");
+                return false;
             }
         }
-    
-    COUNTER(9, i)
-    COUNTER(9, j)
-    {
-        if (sudokugrid[i][j] == 0)
-            continue;
-        else
-        {
-            removerowcandidates(candidates, sudokugrid[i][j], i, j);
-            removecolumncandidates(candidates, sudokugrid[i][j], j, i);
-            removesquarecandidates(candidates, sudokugrid[i][j], i, j);
-        }
-    }
 }
 
-void removecolumncandidates(bool candidates[9][9][9], int number, int column, int row)
-{
-    COUNTER(9, i)
-    {
-        if(i == row)
-            continue;
-        
-        candidates[i][column][number - 1] = false;
-    }
-}
-
-void removerowcandidates(bool candidates[9][9][9], int number, int row, int column)
-{
-    COUNTER(9, i)
-    {
-        if(i == column)
-            continue;
-
-        candidates[row][i][number - 1] = false;
-    }
-}
-
-void removesquarecandidates(bool candidates[9][9][9], int number, int row, int column)
-{
-    int rowstart = (row / 3) * 3;
-    int columnstart = (column / 3) * 3;
-    
-    COUNTER(3, i)
-    COUNTER(3, j)
-    {
-        if((rowstart + i) == row && (columnstart + i) == column)
-            continue;
-        
-        candidates[rowstart + i][columnstart + j][number - 1] = false;
-    }
-}
-
-void addnumberstogrid(int sudokugrid[9][9], bool candidates[9][9][9])
-{
-    int checkforsinglecandidates(bool candidates[9][9][9], int row, int column);
-    bool checkifsafe(int row, int column, int number, int sudokugrid[9][9]);
-
-    int number;
-
-    COUNTER(9, i)
-    COUNTER(9, j)
-    {
-        number = checkforsinglecandidates(candidates, i, j);
-
-        if (number == 0)
-            continue;
-        else
-        {
-            if (checkifsafe(i, j, number, sudokugrid))
-                sudokugrid[i][j] = number;
-        }
-    }
-}
-
-int checkforsinglecandidates(bool candidates[9][9][9], int row, int column)
-{
-    int countcandidates = 0;
-    int likelycandidate = 0;
-
-    COUNTER(9, i)
-    {
-        if (!candidates[row][column][i])
-            continue;
-        else
-        {
-            countcandidates++;
-            likelycandidate = i;
-        }
-    }
-
-    if (countcandidates == 1)
-    {
-        candidates[row][column][likelycandidate] = false;
-        return likelycandidate + 1;
-    }
-    else
-        return 0;
-}
-
-void createboard(int sudokugrid[9][9], int difficulty)
-{
-    void solvegrid(int sudokugrid[9][9]);
-    void fillsquare(int rowstart, int columnstart, int sudokugrid[9][9]);
-    void removedigits(int count, int sudokugrid[9][9]);
-    int solve(int sudokugrid[9][9], int row, int column);
-
-    COUNTER(3, i)
-        fillsquare(i * 3, i * 3, sudokugrid);
-
-    solve(sudokugrid, 0, 0);
-    // removedigits(difficulty, sudokugrid);
-}
-
-void printcandidates(bool candidates[9][9][9])
-{
-    COUNTER(9, i)
-    COUNTER(9, j)
-    {
-        COUNTER(9, k)
-            if(candidates[i][j][k])
-                printf("%d ", k+1);
-        
-        printf("\n");
-    }
-
-    printf("\n");
-    printf("\n");
-}
-
-
+//this function only checks if a point has a valid sudoku number or not
+//it returns a true if the number exists and a false if otherwise
 bool checkfilled(int sudokugrid[9][9], int row, int column)
 {
-    if(sudokugrid[row][column] > 0)
+    if(sudokugrid[row][column])
         return true;
     else
         return false;
